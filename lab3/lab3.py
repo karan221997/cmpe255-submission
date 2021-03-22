@@ -1,97 +1,130 @@
-import matplotlib.pyplot as plt
-import matplotlib as mpl
-import numpy as np
-import os
+import pandas as pd
 
-np.random.seed(42)
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn import metrics
 
-# To plot pretty figures
-mpl.rc('axes', labelsize=14)
-mpl.rc('xtick', labelsize=12)
-mpl.rc('ytick', labelsize=12)
+        
+class DiabetesClassifier:
+    def __init__(self) -> None:
+        col_names = ['pregnant', 'glucose', 'bp', 'skin',
+                     'insulin', 'bmi', 'pedigree', 'age', 'label']
+        self.pima = pd.read_csv('diabetes.csv', header=0,
+                                names=col_names, usecols=col_names)
+        print(self.pima.head())
+        self.X_test = None
+        self.y_test = None
 
-# Where to save the figures
-PROJECT_ROOT_DIR = "."
-# IMAGE_DIR = "images"
+    def define_feature(self, list_f):
+        # feature_cols = ['pregnant', 'insulin', 'bmi', 'age']
+        # X = self.pima[feature_cols]
+        X = list_f
+        y = self.pima.label
+        return X, y
 
+    def train(self, list_f, split):
+        # split X and y into training and testing sets
+        print(split)
+        X, y = self.define_feature(list_f)
+        X_train, self.X_test, y_train, self.y_test = train_test_split(
+            X, y, test_size=split, random_state=1)
+        # train a logistic regression model on the training set
+        logreg = LogisticRegression()
+        logreg.fit(X_train, y_train)
+        return logreg
 
-def save_fig(fig_id, tight_layout=True):
-    path = os.path.join(PROJECT_ROOT_DIR, "images", fig_id + ".png")
-    print("Saving figure", fig_id)
-    if tight_layout:
-        plt.tight_layout()
-    plt.savefig(path, format='png', dpi=300)
+    def predict(self, list_f, split=.3):
 
+        model = self.train(list_f, split)
+        y_pred_class = model.predict(self.X_test)
+        return y_pred_class
 
-def random_digit(X):
-    some_digit = X[36000]
-    some_digit_image = some_digit.reshape(28, 28)
-    plt.imshow(some_digit_image, cmap=mpl.cm.binary,
-               interpolation="nearest")
-    plt.axis("off")
+    def calculate_accuracy(self, result):
+        return metrics.accuracy_score(self.y_test, result)
 
-    save_fig("some_digit_plot")
-    plt.show()
+    def examine(self):
+        dist = self.y_test.value_counts()
+        print(dist)
+        percent_of_ones = self.y_test.mean()
+        percent_of_zeros = 1 - self.y_test.mean()
+        return self.y_test.mean()
 
+    def confusion_matrix(self, result):
+        return metrics.confusion_matrix(self.y_test, result)
+    
+if __name__ == "__main__":
+    # In this first iteration i have taken glucose to predict and test size as 0.35
+    classifer = DiabetesClassifier()
+    df = classifer.pima
 
-def load_and_sort():
-    try:
-        from sklearn.datasets import fetch_openml
-        # fetch_openml() returns targets as strings
-        mnist = fetch_openml('mnist_784', version=1,
-                             as_frame=False, cache=True)
-        mnist.target = mnist.target.astype(np.int8)
-        sort_by_target(mnist)  # fetch_openml() returns an unsorted dataset
-    except ImportError:
-        from sklearn.datasets import fetch_mldata
-        mnist = fetch_mldata('MNIST original')
-    return mnist["data"], mnist["target"]
+    # corr = df.corr()
+    # print(corr)
 
+    fetaure_list = df[["glucose"]]
+    result = classifer.predict(fetaure_list, 0.35)
+    print("----------------------ITERATION 1---------------")
+    print(f"Predicition={result}")
+    score = classifer.calculate_accuracy(result)
+    print(f"score={score}")
+    con_matrix = classifer.confusion_matrix(result)
+    print(f"confusion_matrix={con_matrix}")
+    # score=0.7657992565055762
+    # confusion_matrix=[[159  15]
+    # [ 48  47]]
 
-def sort_by_target(mnist):
-    reorder_train = np.array(
-        sorted([(target, i) for i, target in enumerate(mnist.target[:60000])]))[:, 1]
-    reorder_test = np.array(
-        sorted([(target, i) for i, target in enumerate(mnist.target[60000:])]))[:, 1]
-    mnist.data[:60000] = mnist.data[reorder_train]
-    mnist.target[:60000] = mnist.target[reorder_train]
-    mnist.data[60000:] = mnist.data[reorder_test + 60000]
-    mnist.target[60000:] = mnist.target[reorder_test + 60000]
+    # In this second iteration i have taken glucose,bmi and age as my 3 parameters
+    # and taken test size as 0.3
+    classifer = DiabetesClassifier()
+    df = classifer.pima
 
-
-def train_predict(some_digit, X, y):
-    import numpy as np
-    X_train, X_test, y_train, y_test = X[:
-                                         60000], X[60000:], y[:60000], y[60000:]
-    shuffle_index = np.random.permutation(60000)
-    X_train, y_train = X_train[shuffle_index], y_train[shuffle_index]
-
-    # Example: Binary number 5 Classifier
-    y_train_5 = (y_train == 5)
+    fetaure_list = df[["glucose", "bmi", "age"]]
+    result = classifer.predict(fetaure_list, 0.3)
+    print("----------------------ITERATION 2---------------")
+    print(f"Predicition={result}")
+    score = classifer.calculate_accuracy(result)
+    print(f"score={score}")
+    con_matrix = classifer.confusion_matrix(result)
+    print(f"confusion_matrix={con_matrix}")
+    # score=0.7835497835497836
+    # confusion_matrix=[[132  14]
+    #  [ 36  49]]
     
 
-    from sklearn.linear_model import SGDClassifier
-    # TODO
-    # print prediction result of the given input some_digit
-    sgd_Classifier = SGDClassifier(max_iter=5, tol=-np.infty, random_state=42)
-    sgd_Classifier.fit(X_train, y_train_5)
-    print(sgd_Classifier.predict([some_digit]))
-    return sgd_Classifier, X_train, y_train_5
+    # In the third iteration i have taken bp,glucose,bmi and replaced the 0 value 
+    # with mean of the values and took test size as 0.3
+    classifer = DiabetesClassifier()
+    df = classifer.pima
 
+    print("----------------------ITERATION 3---------------")
+    print("Total bp with 0 value: ", df[df.bp == 0].shape[0]) # 35
+    print("Total glucose with 0 value: ", df[df.glucose == 0].shape[0]) #5
+    print("Total bmi with 0 value: ", df[df.bmi == 0].shape[0]) #11 values
+    mean_glucose = df['glucose'].mean()  # replacing with mean
+    df['glucose'] = df['glucose'].replace(
+        to_replace=0, value=mean_glucose)
+    # 
+    # print("Total : ", df[df.glucose == 0].shape[0])
 
-def calculate_cross_val_score(sgd_Classifier, X_train, y_train_5):
-    from sklearn.model_selection import cross_val_score
-    cross_score = cross_val_score(sgd_Classifier, X_train, y_train_5,
-                            cv=3, scoring="accuracy")
-    print(cross_score)
+    mean_bp = df['bp'].mean()  # replacing with mean
+    df['bp'] = df['bp'].replace(
+        to_replace=0, value=mean_bp)
+    # print("bp")
+    # print("Total : ", df[df.bp == 0].shape[0])
 
-    # TODOk
+    mean_bmi = df['bmi'].mean()  # replacing with mean
+    df['bmi'] = df['bmi'].replace(
+        to_replace=0, value=mean_bmi)
+    # print("bmi")
+    # print("Total : ", df[df.bmi == 0].shape[0])
 
+    fetaure_list = df[['glucose', 'bmi' , 'pregnant']]
+    result = classifer.predict(fetaure_list, 0.3)
+    print(f"Predicition = {result}")
+    score = classifer.calculate_accuracy(result)
+    print(f"score = {score}")
+    con_matrix = classifer.confusion_matrix(result)
+    print(f"confusion_matrix ={con_matrix}")
 
-if __name__ == "__main__":
-    X, y = load_and_sort()
-    random_digit(X)
-    sgd_Classifier, X_train, y_train_5 = train_predict(X[36000], X, y)
-    calculate_cross_val_score(sgd_Classifier, X_train, y_train_5)
-
-    # random_digit(X)
+    # score = 0.8008658008658008
+    # confusion_matrix =[[133  13]
+    # [ 33  52]]
